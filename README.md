@@ -353,17 +353,3 @@ A fuller runbook, including troubleshooting, lives in `ElectraLink-DigitalOcean-
 **Vestigial code in `/start`.** `HARDCODED_SKIP_METERS` / `ENABLE_HARDCODED_SKIP` are debug scaffolding left in the request handler, currently disabled.
 
 **`app_async.py` is ~5000 lines in one file.** Config, selectors, browser management, the worker pool, scraping, export and all routes share a module. Any substantial change should start by splitting it.
-
----
-
-## Security notes
-
-Three items need action, in order of urgency:
-
-1. **`electralink.py` contains a hardcoded Electralink EAC API key and password in plaintext** (near the top of the file). Treat them as compromised and **rotate them** — the file has been zipped and moved around. Delete the file afterwards; nothing imports it.
-
-2. **`app.py` hardcodes default user accounts with weak passwords** in `reset_default_users()`, hashed with unsalted SHA-256. The table it writes to is unused by the running app, but the script is still runnable against `analytics.db`. Delete it.
-
-3. **`credentials.json` stores the portal password in plaintext** on disk. On the droplet it is owned by the service user in `/opt/electralink/`; keep it at `600` and never commit it.
-
-Also worth doing: put the droplet behind a domain with TLS (`certbot --nginx -d your.domain`) so the basic-auth password and portal credentials aren't crossing the wire in the clear.
