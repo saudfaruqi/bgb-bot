@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BGB Portal Automation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f4ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          },
+          animation: {
+            'shimmer': 'shimmer 2s infinite',
+            'pulse-slow': 'pulse 3s infinite',
+          },
+          keyframes: {
+            shimmer: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0a0a0f; }
+    .glass { background: rgba(15,15,25,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(99,102,241,0.15); }
+    .progress-shimmer::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent); animation: shimmer 2s infinite; }
+    @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    .log-scroll::-webkit-scrollbar { width:6px; }
+    .log-scroll::-webkit-scrollbar-track { background:rgba(0,0,0,0.2); border-radius:9px; }
+    .log-scroll::-webkit-scrollbar-thumb { background:rgba(99,102,241,0.4); border-radius:9px; }
+    .table-scroll::-webkit-scrollbar { height:6px; width:6px; }
+    .table-scroll::-webkit-scrollbar-track { background:rgba(0,0,0,0.2); }
+    .table-scroll::-webkit-scrollbar-thumb { background:rgba(99,102,241,0.4); border-radius:9px; }
+    .tab-active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200 p-4 md:p-6">
+<div class="max-w-7xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="glass rounded-2xl p-6 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-1">⚡ BGB Portal Automation</h1>
+    <p class="text-slate-400 text-sm">Intelligent data extraction with real-time analytics and auto-resume</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="glass rounded-2xl p-6 space-y-5">
+    <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2 border-b border-indigo-500/20 pb-3">
+      <span class="w-1.5 h-6 rounded bg-indigo-500 inline-block"></span> 📤 Upload Meter List
+    </h2>
+
+    <!-- Credentials -->
+    <div class="rounded-xl border border-indigo-500/20 bg-slate-900/60 p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="font-medium text-slate-200 text-sm">🔐 Portal Credentials</h3>
+        <span id="credStatus" class="text-xs text-slate-400">Checking...</span>
+      </div>
+      <div id="credForm" class="hidden space-y-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Username / Email</label>
+            <input type="email" id="credUser" placeholder="portal@email.com"
+              class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:border-indigo-500 focus:outline-none"/>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Password</label>
+            <input type="password" id="credPass" placeholder="••••••••"
+              class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:border-indigo-500 focus:outline-none"/>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveCredentials()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors">💾 Save</button>
+          <button onclick="toggleCredForm(false)" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors">Cancel</button>
+        </div>
+      </div>
+      <div id="credConfigured" class="hidden flex items-center gap-3 flex-wrap">
+        <span id="credUsername" class="text-emerald-400 text-sm font-medium"></span>
+        <button onclick="toggleCredForm(true)" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-colors">✏️ Change</button>
+      </div>
+    </div>
+
+    <!-- File Upload -->
+    <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+      <div class="relative border-2 border-dashed border-indigo-500/30 hover:border-indigo-500/60 rounded-xl p-8 text-center transition-colors cursor-pointer group"
+           onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" name="files" accept=".xlsx,.xls" multiple class="hidden"/>
+        <div id="fileLabelContent">
+          <div class="text-3xl mb-2">📁</div>
+          <p class="text-slate-300 font-medium text-sm">Click to choose Excel files</p>
+          <p class="text-slate-500 text-xs mt-1">Supports multiple .xlsx / .xls files</p>
+        </div>
+        <div id="fileSelectedContent" class="hidden">
+          <div class="text-3xl mb-2">✅</div>
+          <p id="fileSelectedText" class="text-indigo-300 font-semibold text-sm"></p>
+          <p class="text-slate-500 text-xs mt-1">Click to change files</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" id="startBtn"
+          class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-900/40">
+          🚀 Start Automation
+        </button>
+        <button type="button" id="stopBtn"
+          class="hidden px-6 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/40">
+          ⛔ Stop Job
+        </button>
+        <button type="button" id="clearBtn"
+          class="px-6 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm transition-all">
+          🗑️ Clear All
+        </button>
+      </div>
+    </form>
+
+    <!-- Resume -->
+    <div id="resumeSection" class="hidden rounded-xl border-2 border-amber-500/40 bg-amber-900/10 p-4 space-y-2">
+      <h3 class="text-amber-400 font-semibold text-sm">📥 Resume Previous Job</h3>
+      <p id="resumeMessage" class="text-slate-400 text-xs">A previous job was detected that can be resumed.</p>
+      <button id="resumeBtn" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors">▶️ Resume Job</button>
+    </div>
+
+    <!-- Sheet Selection -->
+    <div id="sheetSelectionContainer" class="hidden rounded-xl border border-indigo-500/20 bg-slate-900/40 p-4 space-y-4">
+      <div>
+        <h3 class="font-medium text-slate-200 text-sm mb-1">📊 Sheet Selection</h3>
+        <p class="text-slate-500 text-xs">Select which sheets to process. All are selected by default.</p>
+      </div>
+      <div id="sheetPreviewLoading" class="hidden text-center py-6">
+        <div class="w-8 h-8 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 spin mx-auto"></div>
+        <p class="text-slate-500 text-xs mt-3">Analysing sheets...</p>
+      </div>
+      <div id="sheetPreviewContent" class="hidden space-y-3"></div>
+      <div id="sheetSelectionActions" class="hidden flex flex-wrap gap-2">
+        <button onclick="selectAllSheets()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-colors">✅ Select All</button>
+        <button onclick="deselectAllSheets()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-colors">❌ Deselect All</button>
+        <button onclick="hideSheetSelection()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium transition-colors">↩️ Change Files</button>
+      </div>
+      <div id="sheetSelectionSummary" class="hidden text-xs text-slate-400 px-3 py-2 rounded-lg border-l-4 border-indigo-500 bg-indigo-500/10" id="sheetSelectionSummaryText"></div>
+    </div>
+
+    <!-- Alerts -->
+    <div id="errorAlert" class="hidden rounded-xl bg-red-900/40 border border-red-500/40 px-4 py-3 text-red-300 text-sm font-medium"></div>
+    <div id="infoAlert" class="hidden rounded-xl bg-blue-900/40 border border-blue-500/40 px-4 py-3 text-blue-300 text-sm font-medium"></div>
+  </div>
+
+  <!-- Status Panel -->
+  <div id="statusPanel" class="hidden glass rounded-2xl p-6 space-y-5 fade-in">
+    <div class="flex items-center justify-between flex-wrap gap-2 border-b border-indigo-500/20 pb-3">
+      <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+        <span class="w-1.5 h-6 rounded bg-indigo-500 inline-block"></span> 📊 Job Status
+      </h2>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white uppercase tracking-wide">RUNNING</span>
+        <span id="workerStatus" class="hidden px-3 py-1 rounded-full text-xs font-bold bg-emerald-700 text-white">🤖 <span id="activeWorkers">0</span> active</span>
+      </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 text-center hover:border-indigo-500/40 transition-colors">
+        <div class="text-2xl font-bold text-slate-100" id="totalMeters">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Total</div>
+      </div>
+      <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 text-center hover:border-indigo-500/40 transition-colors">
+        <div class="text-2xl font-bold text-indigo-400" id="processedMeters">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Processed</div>
+      </div>
+      <div class="rounded-xl bg-slate-800/60 border border-emerald-700/30 p-4 text-center hover:border-emerald-500/40 transition-colors">
+        <div class="text-2xl font-bold text-emerald-400" id="successCount">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Success</div>
+      </div>
+      <div class="rounded-xl bg-slate-800/60 border border-red-700/30 p-4 text-center hover:border-red-500/40 transition-colors">
+        <div class="text-2xl font-bold text-red-400" id="errorCount">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Failed</div>
+      </div>
+      <div class="rounded-xl bg-slate-800/60 border border-amber-700/30 p-4 text-center hover:border-amber-500/40 transition-colors">
+        <div class="text-2xl font-bold text-amber-400" id="unfoundMeters">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Unfound</div>
+      </div>
+      <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 text-center hover:border-indigo-500/40 transition-colors">
+        <div class="text-2xl font-bold text-slate-300" id="remainingCount">0</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mt-1">Remaining</div>
+      </div>
+    </div>
+
+    <!-- Meta Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+      <div class="text-center">
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Avg/Meter</div>
+        <div class="text-base font-bold text-indigo-400" id="avgTime">-</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">ETA</div>
+        <div class="text-base font-bold text-indigo-400" id="etaTime">-</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Success Rate</div>
+        <div class="text-base font-bold text-emerald-400" id="successRate">-</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Attempt</div>
+        <div class="text-base font-bold text-slate-300" id="attemptNum">1</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-1">Skipped</div>
+        <div class="text-base font-bold text-slate-300" id="skippedCount">0</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="rounded-full bg-slate-800 border border-slate-700 overflow-hidden h-8 relative">
+      <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500 flex items-center justify-center text-white font-bold text-sm relative overflow-hidden progress-shimmer" style="width:0%">
+        0%
+      </div>
+    </div>
+
+    <!-- Status Text -->
+    <div id="statusText" class="text-center text-sm text-slate-400 bg-slate-800/40 rounded-lg px-4 py-2">
+      <span class="inline-block w-4 h-4 rounded-full border-2 border-indigo-500 border-t-transparent spin align-middle mr-2"></span>Idle
+    </div>
+
+    <!-- Download Section -->
+    <div id="downloadSection" class="hidden space-y-3 fade-in">
+      <h3 class="text-sm font-semibold text-slate-300">📥 Download Results</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button id="downloadExcel" class="px-4 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-medium transition-colors shadow-lg shadow-indigo-900/30">📊 Full Excel</button>
+        <button id="downloadElec" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-medium transition-colors shadow-lg shadow-emerald-900/30">⚡ Electricity CSV</button>
+        <button id="downloadGas" class="px-4 py-2.5 rounded-xl bg-orange-700 hover:bg-orange-600 text-white text-sm font-medium transition-colors shadow-lg shadow-orange-900/30">🔥 Gas CSV</button>
+        <button id="downloadUnfound" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors">❗ Unfound</button>
+      </div>
+      <p class="text-xs text-slate-500 bg-slate-800/40 rounded-lg px-3 py-2">
+        💡 CSV exports contain the 12 standardised output columns. Full Excel includes all internal sheets.
+      </p>
+    </div>
+
+    <div id="successAlert" class="hidden rounded-xl bg-emerald-900/40 border border-emerald-500/40 px-4 py-3 text-emerald-300 text-sm font-medium"></div>
+  </div>
+
+  <!-- Preview Card -->
+  <div id="previewCard" class="hidden glass rounded-2xl p-6 space-y-4 fade-in">
+    <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2 border-b border-indigo-500/20 pb-3">
+      <span class="w-1.5 h-6 rounded bg-indigo-500 inline-block"></span> 👁️ Live Preview
+    </h2>
+    <p class="text-xs text-slate-500 bg-slate-800/40 rounded-lg px-3 py-2">Real-time data preview in the standardised 12-column format. Full data available after download.</p>
+
+    <!-- Preview Stat Chips -->
+    <div class="flex flex-wrap gap-3">
+      <div class="rounded-xl border border-indigo-500/20 bg-slate-800/60 px-5 py-3 text-center min-w-[90px]">
+        <div class="text-xl font-bold text-indigo-400" id="elecCount">0</div>
+        <div class="text-xs text-slate-500 mt-0.5">⚡ Electricity</div>
+      </div>
+      <div class="rounded-xl border border-orange-500/20 bg-slate-800/60 px-5 py-3 text-center min-w-[90px]">
+        <div class="text-xl font-bold text-orange-400" id="gasCount">0</div>
+        <div class="text-xs text-slate-500 mt-0.5">🔥 Gas</div>
+      </div>
+      <div class="rounded-xl border border-amber-500/20 bg-slate-800/60 px-5 py-3 text-center min-w-[90px]">
+        <div class="text-xl font-bold text-amber-400" id="unfoundCount">0</div>
+        <div class="text-xs text-slate-500 mt-0.5">❗ Unfound</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 border-b border-slate-700/60 flex-wrap">
+      <button class="preview-tab tab-active px-5 py-2 rounded-t-lg text-sm font-semibold transition-all" data-tab="electricity">⚡ Electricity</button>
+      <button class="preview-tab px-5 py-2 rounded-t-lg text-sm font-semibold text-slate-400 hover:text-slate-200 transition-all" data-tab="gas">🔥 Gas</button>
+      <button class="preview-tab px-5 py-2 rounded-t-lg text-sm font-semibold text-slate-400 hover:text-slate-200 transition-all" data-tab="unfound">❗ Unfound</button>
+    </div>
+
+    <div class="preview-content active" id="elecPreview">
+      <div class="table-scroll overflow-auto max-h-96 rounded-xl border border-slate-700/50" id="elecTableContainer">
+        <p class="text-center text-slate-600 py-10 text-sm">No electricity meters yet...</p>
+      </div>
+    </div>
+    <div class="preview-content hidden" id="gasPreview">
+      <div class="table-scroll overflow-auto max-h-96 rounded-xl border border-slate-700/50" id="gasTableContainer">
+        <p class="text-center text-slate-600 py-10 text-sm">No gas meters yet...</p>
+      </div>
+    </div>
+    <div class="preview-content hidden" id="unfoundPreview">
+      <p class="text-xs text-slate-500 bg-amber-900/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-2">
+        Meters not found with British Gas or missing site details.
+      </p>
+      <div class="table-scroll overflow-auto max-h-96 rounded-xl border border-slate-700/50" id="unfoundTableContainer">
+        <p class="text-center text-slate-600 py-10 text-sm">No unfound meters yet...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Card -->
+  <div id="logCard" class="glass rounded-2xl p-6 space-y-3">
+    <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2 border-b border-indigo-500/20 pb-3">
+      <span class="w-1.5 h-6 rounded bg-indigo-500 inline-block"></span> 📝 Activity Log
+    </h2>
+    <div class="log-scroll overflow-y-auto max-h-80 space-y-1.5 font-mono text-xs" id="logContainer">
+      <div class="flex gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border-l-2 border-blue-500/40">
+        <span class="text-slate-600 shrink-0">[--:--:--]</span>
+        <span class="text-slate-400">Waiting for activity...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .preview-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .preview-table thead th { background:#1e1e2e; color:#94a3b8; padding:10px 14px; text-align:left; position:sticky; top:0; z-index:2; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid rgba(99,102,241,0.2); white-space:nowrap; }
+  .preview-table tbody td { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); color:#cbd5e1; white-space:nowrap; }
+  .preview-table tbody tr:hover td { background:rgba(99,102,241,0.07); }
+  .preview-table tbody tr:nth-child(even) td { background:rgba(255,255,255,0.02); }
+  .preview-table .col-highlight { color:#fbbf24 !important; font-weight:700; }
+  .preview-table .empty-cell { color:#374151 !important; font-style:italic; }
+</style>
+
+<script>
+// ==================== CONFIG ====================
+const STORAGE_KEY = 'bgb_portal_state';
+const PREVIEW_STORAGE_KEY = 'bgb_portal_preview';
+const MAX_PREVIEW_ROWS = 500;
+const MAX_LOCALSTORAGE_SIZE = 500000;
+const SAVE_STATE_DEBOUNCE_MS = 500;
+const SAVE_PREVIEW_DEBOUNCE_MS = 1000;
+const MAX_WS_RECONNECT = 3;
+const MAX_LOGS = 150;
+const MAX_STATE_LOGS = 20;
+const PREVIEW_DATA_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+let sheetPreviewData = null;
+let selectedSheetsList = [];
+let currentJobId = null;
+let ws = null;
+let wsReconnecting = false;
+let wsReconnectAttempts = 0;
+let processedCount=0, successCount=0, errorCount=0, unfoundCount=0, totalMeters=0, remainingCount=0, skippedCount=0;
+let logs=[], combinedRows=[], unfoundRows=[], isJobStopping=false;
+let saveStateTimeout=null, savePreviewTimeout=null;
+
+// DOM refs
+const fileInput = document.getElementById('fileInput');
+const uploadForm = document.getElementById('uploadForm');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const resumeBtn = document.getElementById('resumeBtn');
+const resumeSection = document.getElementById('resumeSection');
+const resumeMessage = document.getElementById('resumeMessage');
+const clearBtn = document.getElementById('clearBtn');
+const statusPanel = document.getElementById('statusPanel');
+const logCard = document.getElementById('logCard');
+const logContainer = document.getElementById('logContainer');
+const progressBar = document.getElementById('progressBar');
+const statusText = document.getElementById('statusText');
+const downloadSection = document.getElementById('downloadSection');
+const errorAlert = document.getElementById('errorAlert');
+const successAlert = document.getElementById('successAlert');
+const statusBadge = document.getElementById('statusBadge');
+const previewCard = document.getElementById('previewCard');
+const elecTableContainer = document.getElementById('elecTableContainer');
+const gasTableContainer = document.getElementById('gasTableContainer');
+const unfoundTableContainer = document.getElementById('unfoundTableContainer');
+const workerStatus = document.getElementById('workerStatus');
+const activeWorkersSpan = document.getElementById('activeWorkers');
+const skippedCountEl = document.getElementById('skippedCount');
+const downloadExcel = document.getElementById('downloadExcel');
+const downloadElec = document.getElementById('downloadElec');
+const downloadGas = document.getElementById('downloadGas');
+const downloadUnfound = document.getElementById('downloadUnfound');
+
+// ==================== INIT ====================
+window.addEventListener('load', async () => {
+  setupPreviewTabs();
+  checkCredentials();
+  const state = loadState();
+  if (state && state.currentJobId) await restoreJobState(state);
+});
+window.addEventListener('beforeunload', () => {
+  if (saveStateTimeout) clearTimeout(saveStateTimeout);
+  saveStateImmediate();
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, 'Page unloading');
+  if (savePreviewTimeout) { clearTimeout(savePreviewTimeout); savePreviewDataImmediate(); }
+});
+
+// ==================== TABS ====================
+function setupPreviewTabs() {
+  document.querySelectorAll('.preview-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.preview-tab').forEach(t => {
+        t.classList.remove('tab-active');
+        t.classList.add('text-slate-400');
+      });
+      document.querySelectorAll('.preview-content').forEach(c => c.classList.add('hidden'));
+      tab.classList.add('tab-active');
+      tab.classList.remove('text-slate-400');
+      const target = { electricity:'elecPreview', gas:'gasPreview', unfound:'unfoundPreview' }[tab.dataset.tab];
+      if (target) document.getElementById(target).classList.remove('hidden');
+    });
+  });
+}
+
+// ==================== CREDENTIALS ====================
+async function checkCredentials() {
+  try {
+    const res = await fetch('/credentials');
+    const data = await res.json();
+    const statusEl = document.getElementById('credStatus');
+    if (data.configured) {
+      statusEl.innerHTML = `<span class="text-emerald-400 text-xs">✅ Configured</span>`;
+      document.getElementById('credConfigured').classList.remove('hidden');
+      document.getElementById('credConfigured').classList.add('flex');
+      document.getElementById('credForm').classList.add('hidden');
+      document.getElementById('credUsername').textContent = `Logged in as: ${data.username}`;
+    } else {
+      statusEl.innerHTML = `<span class="text-amber-400 text-xs">⚠️ Not configured</span>`;
+      document.getElementById('credConfigured').classList.add('hidden');
+      document.getElementById('credForm').classList.remove('hidden');
+    }
+  } catch(e) { console.error('Credentials check failed:', e); }
+}
+function toggleCredForm(show) {
+  document.getElementById('credForm').classList.toggle('hidden', !show);
+  document.getElementById('credConfigured').classList.toggle('hidden', show);
+}
+async function saveCredentials() {
+  const user = document.getElementById('credUser').value.trim();
+  const pass = document.getElementById('credPass').value.trim();
+  if (!user || !pass) { alert('Please enter both username and password'); return; }
+  try {
+    const res = await fetch('/credentials', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:user,password:pass}) });
+    if (!res.ok) throw new Error('Failed to save');
+    document.getElementById('credUser').value = '';
+    document.getElementById('credPass').value = '';
+    await checkCredentials();
+    addLog('✅ Credentials saved', 'success');
+  } catch(e) { alert('Failed to save credentials: ' + e.message); }
+}
+async function clearCredentials() {
+  if (!confirm('Clear saved credentials?')) return;
+  await fetch('/credentials', { method:'DELETE' });
+  await checkCredentials();
+  addLog('Credentials cleared', 'info');
+}
+
+// ==================== LOGGING ====================
+function addLog(message, type='info') {
+  const time = new Date().toLocaleTimeString();
+  logs.unshift({message,type,time});
+  if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
+  addLogToDOM(message, type, time);
+  saveState();
+}
+function addLogToDOM(message, type, time) {
+  const colours = { error:'border-red-500/50 bg-red-500/5 text-red-300', success:'border-emerald-500/50 bg-emerald-500/5 text-emerald-300', warning:'border-amber-500/50 bg-amber-500/5 text-amber-300', info:'border-blue-500/30 bg-blue-500/5 text-slate-400' };
+  const cls = colours[type] || colours.info;
+  const entry = document.createElement('div');
+  entry.className = `flex gap-2 px-3 py-2 rounded-lg border-l-2 ${cls} hover:translate-x-1 transition-transform`;
+  entry.innerHTML = `<span class="text-slate-600 shrink-0">[${time}]</span><span>${escapeHtml(message)}</span>`;
+  if (logContainer.firstChild) logContainer.insertBefore(entry, logContainer.firstChild);
+  else logContainer.appendChild(entry);
+  while (logContainer.children.length > MAX_LOGS) logContainer.removeChild(logContainer.lastChild);
+}
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function clearLogDisplay() {
+  logContainer.innerHTML = '<div class="flex gap-2 px-3 py-2 rounded-lg border-l-2 border-blue-500/30 bg-blue-500/5"><span class="text-slate-600">[--:--:--]</span><span class="text-slate-400">Waiting for activity...</span></div>';
+}
+
+// ==================== STATE RESTORE ====================
+async function restoreJobState(state) {
+  const status = (state.statusBadgeText || '').toLowerCase();
+  setupDownloadButtons();
+  const previewData = loadPreviewData();
+  if (previewData) {
+    combinedRows = previewData.combinedRows || [];
+    if (combinedRows.length > 0) {
+      const elecRows = combinedRows.filter(r => isElectricityRow(r));
+      const gasRows = combinedRows.filter(r => isGasRow(r));
+      if (elecRows.length > 0) renderPreviewTable('electricity', elecRows);
+      if (gasRows.length > 0) renderPreviewTable('gas', gasRows);
+      previewCard.classList.remove('hidden');
+    }
+  }
+  if (Array.isArray(state.logs) && state.logs.length > 0) {
+    clearLogDisplay();
+    state.logs.forEach(log => addLogToDOM(log.message, log.type, log.time));
+  }
+  if (state.skippedCount) { skippedCount = state.skippedCount; if(skippedCountEl) skippedCountEl.textContent = skippedCount; }
+  if (['cancelled','failed'].includes(status)) {
+    try {
+      const res = await fetch(`/check_resume/${state.currentJobId}`);
+      if (res.ok) { const data = await res.json(); if (data.can_resume) showResumeSection(data.processed_meters, data.total_meters); }
+    } catch(e) {}
+  }
+  if (['running','cancelling'].includes(status)) {
+    statusPanel.classList.remove('hidden');
+    previewCard.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    resumeSection.classList.add('hidden');
+    updateStatusBadge('running');
+    saveStateCritical();
+    setTimeout(() => initWebSocket(state.currentJobId), 500);
+  }
+  if (['completed','cancelled','failed'].includes(status)) {
+    fetchPreviews(state.currentJobId);
+    fetchStats(state.currentJobId);
+    downloadSection.classList.remove('hidden');
+  }
+}
+
+// ==================== WEBSOCKET ====================
+function initWebSocket(jobId) {
+  if (wsReconnecting) return;
+  if (ws) { try { ws.close(); } catch(e){} }
+  if (!jobId) return;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  try { ws = new WebSocket(`${protocol}//${window.location.host}/ws/${jobId}`); } catch(e) { addLog('WebSocket init failed','error'); return; }
+  ws.onopen = () => { addLog('Connected to server','success'); wsReconnectAttempts=0; wsReconnecting=false; fetchPreviews(jobId); fetchStats(jobId); saveState(); };
+  ws.onmessage = (e) => { try { handleMessage(JSON.parse(e.data)); saveState(); } catch(err){} };
+  ws.onerror = () => addLog('WebSocket error','error');
+  ws.onclose = (ev) => {
+    const s = (statusBadge.textContent||'').toLowerCase();
+    if (['cancelled','completed','failed'].includes(s)) { wsReconnecting=false; return; }
+    addLog('Connection closed','warning');
+    if (['running','cancelling'].includes(s) && wsReconnectAttempts < MAX_WS_RECONNECT && !ev.wasClean && !wsReconnecting) {
+      wsReconnecting=true; wsReconnectAttempts++;
+      addLog(`Reconnecting (${wsReconnectAttempts}/${MAX_WS_RECONNECT})...`,'info');
+      setTimeout(() => { if(wsReconnecting) initWebSocket(jobId); }, 1000 * Math.pow(2, wsReconnectAttempts-1));
+    } else { wsReconnecting=false; }
+    saveState();
+  };
+}
+
+// ==================== MESSAGE HANDLER ====================
+function handleMessage(msg) {
+  if (!msg || typeof msg !== 'object') return;
+  const meta = msg.meta || {};
+  if (['status','progress'].includes(msg.type)) {
+    if (msg.msg) { addLog(msg.msg,'info'); statusText.innerHTML = `<span class="inline-block w-3 h-3 rounded-full border-2 border-indigo-500 border-t-transparent spin align-middle mr-2"></span>${escapeHtml(msg.msg)}`; }
+    if (meta.total !== undefined) { totalMeters=meta.total; document.getElementById('totalMeters').textContent=totalMeters; }
+    if (meta.processed !== undefined) { processedCount=meta.processed; document.getElementById('processedMeters').textContent=processedCount; }
+    if (meta.success !== undefined) { successCount=meta.success; document.getElementById('successCount').textContent=successCount; }
+    if (meta.failed !== undefined) { errorCount=meta.failed; document.getElementById('errorCount').textContent=errorCount; }
+    if (meta.unfound !== undefined) { unfoundCount=meta.unfound; document.getElementById('unfoundMeters').textContent=unfoundCount; const el=document.getElementById('unfoundCount'); if(el) el.textContent=unfoundCount; }
+    if (meta.remaining !== undefined) { remainingCount=meta.remaining; document.getElementById('remainingCount').textContent=remainingCount; }
+    if (meta.attempt !== undefined) document.getElementById('attemptNum').textContent=meta.attempt;
+    if (meta.skipped !== undefined) { skippedCount=meta.skipped; if(skippedCountEl) skippedCountEl.textContent=skippedCount; }
+    if (meta.active_workers !== undefined) { if(meta.active_workers>0){workerStatus.classList.remove('hidden');activeWorkersSpan.textContent=meta.active_workers;}else{workerStatus.classList.add('hidden');} }
+    if (meta.avg_time_seconds !== undefined && meta.avg_time_seconds !== null) document.getElementById('avgTime').textContent=formatSecondsHuman(meta.avg_time_seconds);
+    if (meta.eta_seconds !== undefined && meta.eta_seconds !== null) document.getElementById('etaTime').textContent=formatSecondsHuman(meta.eta_seconds);
+    const progress = Number(msg.progress ?? (totalMeters && processedCount ? Math.round((processedCount/totalMeters)*100) : 0));
+    progressBar.style.width = progress+'%'; progressBar.textContent = progress+'%';
+    calculateSuccessRate();
+    if (msg.row) {
+      addPreviewRow(msg.row);
+      if (msg.row.error) addLog(`❌ ${msg.row.meter||'unknown'}: ${msg.row.error}`,'error');
+      else addLog(`✅ ${msg.row.meter||'unknown'} (${msg.row.kind||'N/A'}) - ${msg.row['Site Postcode']||'N/A'}`,'success');
+    }
+  }
+  if (msg.type === 'done') {
+    isJobStopping=false; workerStatus.classList.add('hidden');
+    const metaObj=msg.meta||{};
+    const canResume=metaObj.can_resume===true;
+    const isCancelled=canResume||(msg.msg||'').toLowerCase().includes('cancel')||(msg.msg||'').toLowerCase().includes('stop');
+    progressBar.style.width=(isCancelled?Math.round((processedCount/totalMeters)*100):100)+'%';
+    progressBar.textContent=(isCancelled?Math.round((processedCount/totalMeters)*100):100)+'%';
+    statusText.innerHTML=`<span>✅ ${escapeHtml(msg.msg||'Done')}</span>`;
+    addLog(msg.msg||'Done', isCancelled?'info':'success');
+    updateStatusBadge(isCancelled?'cancelled':'completed');
+    if (!isCancelled && msg.total_time) { successAlert.textContent=`✅ Completed in ${msg.total_time} minutes!`; successAlert.classList.remove('hidden'); }
+    if (metaObj.success!==undefined){successCount=metaObj.success;document.getElementById('successCount').textContent=successCount;}
+    if (metaObj.failed!==undefined){errorCount=metaObj.failed;document.getElementById('errorCount').textContent=errorCount;}
+    if (metaObj.unfound!==undefined){unfoundCount=metaObj.unfound;document.getElementById('unfoundMeters').textContent=unfoundCount;const el=document.getElementById('unfoundCount');if(el)el.textContent=unfoundCount;}
+    if (metaObj.success_rate_percent!==undefined&&!isNaN(metaObj.success_rate_percent)) document.getElementById('successRate').textContent=metaObj.success_rate_percent.toFixed(1)+'%'; else calculateSuccessRate();
+    if (isCancelled && canResume) showResumeSection(metaObj.processed||processedCount, metaObj.total||totalMeters);
+    downloadSection.classList.remove('hidden');
+    stopBtn.classList.add('hidden');
+    startBtn.disabled=false; startBtn.textContent='🔄 Start New Job';
+    fetchPreviews(currentJobId); fetchStats(currentJobId);
+  }
+  if (msg.type==='error') { addLog(msg.msg||'Error','error'); errorAlert.textContent=`❌ ${msg.msg||'Error'}`; errorAlert.classList.remove('hidden'); }
+  if (msg.type==='warning') addLog(msg.msg||'Warning','warning');
+  if (msg.type==='success') addLog(msg.msg||'Success','success');
+  if (msg.type==='info') addLog(msg.msg||'Info','info');
+}
+
+function calculateSuccessRate() {
+  const s=parseInt(document.getElementById('successCount').textContent||'0');
+  const f=parseInt(document.getElementById('errorCount').textContent||'0');
+  const t=s+f;
+  document.getElementById('successRate').textContent = t===0?'-':t===f?'0.0%':(s/t*100).toFixed(1)+'%';
+}
+
+// ==================== SHEET PREVIEW ====================
+async function previewSheets() {
+  const files = fileInput.files;
+  if (!files || files.length===0) { document.getElementById('sheetSelectionContainer').classList.add('hidden'); return; }
+  document.getElementById('sheetSelectionContainer').classList.remove('hidden');
+  document.getElementById('sheetPreviewLoading').classList.remove('hidden');
+  document.getElementById('sheetPreviewContent').classList.add('hidden');
+  document.getElementById('sheetSelectionActions').classList.add('hidden');
+  document.getElementById('sheetSelectionSummary').classList.add('hidden');
+  try {
+    const formData = new FormData();
+    for (let file of files) formData.append('files', file);
+    const response = await fetch('/preview_sheets', { method:'POST', body:formData });
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const data = await response.json();
+    sheetPreviewData = data;
+    displaySheetOptions(data);
+    document.getElementById('sheetSelectionActions').classList.remove('hidden');
+    updateSheetSummary();
+  } catch(error) {
+    document.getElementById('sheetPreviewContent').innerHTML = `<div class="rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-3 text-red-300 text-xs">⚠️ Sheet preview failed: ${escapeHtml(error.message)}. All sheets will be processed by default.</div>`;
+    document.getElementById('sheetPreviewContent').classList.remove('hidden');
+  } finally {
+    document.getElementById('sheetPreviewLoading').classList.add('hidden');
+  }
+}
+
+function displaySheetOptions(data) {
+  const container = document.getElementById('sheetPreviewContent');
+  let html = '';
+  selectedSheetsList = [];
+  data.files.forEach((file, fileIdx) => {
+    html += `<div class="rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-slate-300 text-sm font-medium">📄 ${escapeHtml(file.filename)}</span>
+        ${file.total_sheets?`<span class="px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 text-xs">${file.total_sheets} sheets</span>`:''}
+      </div>`;
+    if (file.error) {
+      html += `<div class="text-red-400 text-xs bg-red-900/20 rounded-lg px-3 py-2">${escapeHtml(file.error)}</div>`;
+    } else if (file.sheets && file.sheets.length > 0) {
+      file.sheets.forEach((sheet, sheetIdx) => {
+        const id = `sheet_${fileIdx}_${sheetIdx}`;
+        if (sheet.error) {
+          html += `<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/40 opacity-50"><span class="text-slate-500 text-xs line-through">${escapeHtml(sheet.name)}</span><span class="px-2 py-0.5 rounded-full bg-red-900/40 text-red-400 text-xs">Error</span></div>`;
+        } else {
+          selectedSheetsList.push(sheet.name);
+          const m = sheet.meters_found || 0;
+          html += `<label class="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-900/40 hover:bg-slate-900/60 cursor-pointer border border-transparent hover:border-indigo-500/30 transition-all" for="${id}">
+            <input class="sheet-checkbox w-4 h-4 accent-indigo-500" type="checkbox" value="${escapeHtml(sheet.name)}" id="${id}" checked onchange="updateSheetSummary()"/>
+            <span class="text-slate-300 text-xs font-medium">${escapeHtml(sheet.name)}</span>
+            <span class="px-2 py-0.5 rounded-full bg-slate-700 text-slate-400 text-xs">${sheet.rows}r</span>
+            ${m>0?`<span class="px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 text-xs">${m} meters</span>`:`<span class="px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400 text-xs">0 meters</span>`}
+          </label>`;
+        }
+      });
+    }
+    html += `</div>`;
+  });
+  container.innerHTML = html;
+  container.classList.remove('hidden');
+}
+
+function updateSheetSummary() {
+  const all = document.querySelectorAll('.sheet-checkbox:not(:disabled)');
+  const checked = document.querySelectorAll('.sheet-checkbox:checked');
+  const el = document.getElementById('sheetSelectionSummary');
+  const text = document.getElementById('sheetSelectionSummaryText');
+  const total = all.length, selected = checked.length;
+  el.classList.remove('hidden');
+  if (selected===0) el.innerHTML=`<span class="text-amber-400">⚠️ No sheets selected</span>`;
+  else if (selected===total) el.innerHTML=`<span class="text-emerald-400">✅ All ${total} sheets selected</span>`;
+  else el.innerHTML=`<span class="text-indigo-400">📊 ${selected} of ${total} sheets selected</span>`;
+}
+function getSelectedSheets() {
+  const checked = Array.from(document.querySelectorAll('.sheet-checkbox:checked')).map(cb=>cb.value);
+  const all = document.querySelectorAll('.sheet-checkbox:not(:disabled)');
+  return checked.length===all.length?'':checked.join(',');
+}
+function selectAllSheets() { document.querySelectorAll('.sheet-checkbox:not(:disabled)').forEach(cb=>cb.checked=true); updateSheetSummary(); }
+function deselectAllSheets() { document.querySelectorAll('.sheet-checkbox:not(:disabled)').forEach(cb=>cb.checked=false); updateSheetSummary(); }
+function hideSheetSelection() { document.getElementById('sheetSelectionContainer').classList.add('hidden'); sheetPreviewData=null; selectedSheetsList=[]; }
+
+// ==================== PREVIEW ====================
+async function fetchPreviews(jobId) {
+  if (!jobId) return;
+  try {
+    const res = await fetch(`/preview/${jobId}/combined`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.data) return;
+    document.getElementById('elecCount').textContent = data.electricity_count||0;
+    document.getElementById('gasCount').textContent = data.gas_count||0;
+    document.getElementById('unfoundCount').textContent = data.unfound_count||0;
+    if (data.data.electricity?.length>0) { renderPreviewTable('electricity',data.data.electricity); combinedRows=[...combinedRows,...data.data.electricity]; }
+    if (data.data.gas?.length>0) { renderPreviewTable('gas',data.data.gas); combinedRows=[...combinedRows,...data.data.gas]; }
+    if (data.data.unfound?.length>0) { unfoundRows=data.data.unfound; renderPreviewTable('unfound',data.data.unfound); }
+    previewCard.classList.remove('hidden');
+    debouncedSavePreview();
+  } catch(e) { console.error('[Preview]',e); }
+}
+
+async function fetchStats(jobId) {
+  if (!jobId) return;
+  try {
+    const res = await fetch(`/stats/${jobId}`);
+    if (!res.ok) return;
+    const s = await res.json();
+    if (s.elec_count!==undefined) document.getElementById('elecCount').textContent=s.elec_count;
+    if (s.gas_count!==undefined) document.getElementById('gasCount').textContent=s.gas_count;
+    if (s.unfound_count!==undefined) document.getElementById('unfoundCount').textContent=s.unfound_count;
+  } catch(e) {}
+}
+
+function isElectricityRow(row) {
+  if (!row) return false;
+  const kind=(row.kind||'').toLowerCase();
+  if (kind==='electricity') return true;
+  if (kind==='gas') return false;
+  if (row['Energization Status']&&String(row['Energization Status']).trim()&&String(row['Energization Status']).toLowerCase()!=='none') return true;
+  if (row['MPAN Topline']&&String(row['MPAN Topline']).trim()&&String(row['MPAN Topline']).toLowerCase()!=='none') return true;
+  if (row['Electricity Consumption (kWh)']&&String(row['Electricity Consumption (kWh)']).trim()) return true;
+  if (row['MPRN']||row['Annualised AQ']||row['Gas Consumption (kWh)']) return false;
+  const digits=(String(row['meter']||row['Meter Number']||'')).replace(/\D/g,'').length;
+  if (digits===13) return true;
+  if (digits>=6&&digits<=10) return false;
+  return !!(row['Site Postcode']||row['Site Town']||row['Site Street 1']);
+}
+function isGasRow(row) {
+  if (!row) return false;
+  const kind=(row.kind||'').toLowerCase();
+  if (kind==='gas') return true;
+  if (kind==='electricity') return false;
+  if (row['Annualised AQ']&&String(row['Annualised AQ']).trim()&&String(row['Annualised AQ']).toLowerCase()!=='none') return true;
+  if (row['MPRN']&&String(row['MPRN']).trim()&&String(row['MPRN']).toLowerCase()!=='none') return true;
+  if (row['Gas Consumption (kWh)']&&String(row['Gas Consumption (kWh)']).trim()) return true;
+  if (row['Energization Status']||row['MPAN Topline']) return false;
+  const digits=(String(row['meter']||row['Meter Number']||'')).replace(/\D/g,'').length;
+  if (digits>=6&&digits<=10) return true;
+  return false;
+}
+function isUnfoundRow(row) {
+  if (!row) return false;
+  if (row.Status==='Unfound'||row.status==='unfound') return true;
+  if (row.not_found===true) return true;
+  if (row.error) {
+    const e=String(row.error).toLowerCase();
+    if (['not found','not with bg','not with british gas','no site details','meter not registered','no data','future contract already agreed'].some(p=>e.includes(p))) return true;
+  }
+  return !['Site Building Name','Site Street 1','Site Town','Site Postcode'].some(f=>row[f]&&String(row[f]).trim()&&String(row[f]).toLowerCase()!=='none');
+}
+
+function addPreviewRow(row) {
+  if (!row||typeof row!=='object') return;
+  if (isUnfoundRow(row)) {
+    unfoundRows.unshift(row);
+    if (unfoundRows.length>100) unfoundRows=unfoundRows.slice(0,100);
+    renderPreviewTable('unfound',unfoundRows);
+    const el=document.getElementById('unfoundCount'); if(el) el.textContent=String(unfoundRows.length);
+    previewCard.classList.remove('hidden');
+    debouncedSavePreview(); return;
+  }
+  combinedRows.unshift(row);
+  if (combinedRows.length>100) combinedRows=combinedRows.slice(0,100);
+  if (isElectricityRow(row)) { renderPreviewTable('electricity',combinedRows.filter(r=>isElectricityRow(r))); document.getElementById('elecCount').textContent=String(combinedRows.filter(r=>isElectricityRow(r)).length); }
+  if (isGasRow(row)) { renderPreviewTable('gas',combinedRows.filter(r=>isGasRow(r))); document.getElementById('gasCount').textContent=String(combinedRows.filter(r=>isGasRow(r)).length); }
+  previewCard.classList.remove('hidden');
+  debouncedSavePreview();
+}
+
+function renderPreviewTable(type, rows) {
+  const container = {electricity:elecTableContainer, gas:gasTableContainer, unfound:unfoundTableContainer}[type];
+  if (!container) return;
+  if (!rows||rows.length===0) {
+    const icons={electricity:'⚡',gas:'🔥',unfound:'❗'};
+    container.innerHTML=`<p class="text-center text-slate-600 py-10 text-sm">${icons[type]||''} No ${type} meters yet...</p>`;
+    return;
+  }
+  const cols=['Site Building Name','Site Street No','Site Street 1','Site Street 2','Site Town','Site Postcode','MPAN Topline','Meter Number','Usage','Proposed Start Date','Energization Status','Annualised AQ'];
+  if (type==='unfound') cols.push('Status');
+  const table=document.createElement('table');
+  table.className='preview-table';
+  const thead=document.createElement('thead');
+  const trh=document.createElement('tr');
+  cols.forEach(col=>{
+    const th=document.createElement('th');
+    th.textContent=col;
+    const isHighlight=(type==='electricity'&&col==='Energization Status')||((type==='gas'||type==='unfound')&&col==='Annualised AQ')||(type==='unfound'&&col==='Status');
+    if (isHighlight) th.classList.add('col-highlight');
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  rows.forEach(row=>{
+    const tr=document.createElement('tr');
+    cols.forEach(col=>{
+      const td=document.createElement('td');
+      let val='';
+      switch(col){
+        case 'Site Building Name': case 'Site Street No': case 'Site Street 1': case 'Site Street 2': case 'Site Town': case 'Site Postcode': val=row[col]||''; break;
+        case 'MPAN Topline': val=(type==='electricity')?(row['MPAN Topline']||''):''; break;
+        case 'Meter Number': val=row['meter']||row['Meter Number']||''; break;
+        case 'Usage': val=(type==='electricity')?(row['Electricity Consumption (kWh)']||row['Usage']||''):(row['Gas Consumption (kWh)']||row['Usage']||''); break;
+        case 'Proposed Start Date': val=(type==='electricity')?(row['Proposed Start Date (Elec)']||row['Proposed Start Date']||''):(row['Proposed Start Date (Gas)']||row['Proposed Start Date']||''); break;
+        case 'Energization Status': val=(type==='electricity')?(row['Energization Status']||''):''; break;
+        case 'Annualised AQ':
+          if(type==='gas'||type==='unfound'){const aq=row['Transportation AQ']||row['Annualised AQ']||'';if(aq&&String(aq).trim()){const t=String(aq).trim();if(!isNaN(t.replace(/,/g,''))&&t!=='')val=t;}} break;
+        case 'Status': val=row.Status||row.status||'Unfound'; break;
+      }
+      if(val===undefined||val===null) val='';
+      if(typeof val==='object'){try{val=JSON.stringify(val);}catch(e){val=String(val);}}
+      const disp=String(val).trim();
+      td.textContent=disp||'-';
+      if(!disp||disp===''||disp.toLowerCase()==='none') td.classList.add('empty-cell');
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.innerHTML=''; container.appendChild(table);
+}
+
+// ==================== PREVIEW STORAGE ====================
+function debouncedSavePreview() {
+  if (savePreviewTimeout) clearTimeout(savePreviewTimeout);
+  savePreviewTimeout = setTimeout(()=>{ savePreviewDataImmediate(); savePreviewTimeout=null; }, SAVE_PREVIEW_DEBOUNCE_MS);
+}
+function savePreviewDataImmediate() {
+  const d={combinedRows:combinedRows.slice(0,MAX_PREVIEW_ROWS),timestamp:new Date().toISOString()};
+  try {
+    const s=JSON.stringify(d);
+    if(s.length>MAX_LOCALSTORAGE_SIZE) localStorage.setItem(PREVIEW_STORAGE_KEY,JSON.stringify({combinedRows:combinedRows.slice(0,25),timestamp:d.timestamp}));
+    else localStorage.setItem(PREVIEW_STORAGE_KEY,s);
+  } catch(e) { try{localStorage.removeItem(PREVIEW_STORAGE_KEY);}catch(e2){} }
+}
+function loadPreviewData() {
+  try {
+    const saved=localStorage.getItem(PREVIEW_STORAGE_KEY); if(!saved) return null;
+    const data=JSON.parse(saved); if(!data) return null;
+    if(data.timestamp&&Date.now()-new Date(data.timestamp).getTime()>PREVIEW_DATA_MAX_AGE_MS){localStorage.removeItem(PREVIEW_STORAGE_KEY);return null;}
+    if(data.combinedRows&&Array.isArray(data.combinedRows)) data.combinedRows=data.combinedRows.slice(0,MAX_PREVIEW_ROWS);
+    return data;
+  } catch(e) { localStorage.removeItem(PREVIEW_STORAGE_KEY); return null; }
+}
+
+// ==================== STATE PERSISTENCE ====================
+function loadState() {
+  try {
+    const saved=localStorage.getItem(STORAGE_KEY); if(!saved) return null;
+    const state=JSON.parse(saved);
+    currentJobId=state.currentJobId||null;
+    processedCount=state.processedCount||0; successCount=state.successCount||0; errorCount=state.errorCount||0;
+    unfoundCount=state.unfoundCount||0; totalMeters=state.totalMeters||0; remainingCount=state.remainingCount||0; skippedCount=state.skippedCount||0;
+    logs=Array.isArray(state.logs)?state.logs.slice(0,MAX_LOGS):[];
+    isJobStopping=!!state.isJobStopping; wsReconnecting=!!state.wsReconnecting;
+    document.getElementById('totalMeters').textContent=totalMeters;
+    document.getElementById('processedMeters').textContent=processedCount;
+    document.getElementById('successCount').textContent=successCount;
+    document.getElementById('errorCount').textContent=errorCount;
+    document.getElementById('unfoundMeters').textContent=unfoundCount;
+    document.getElementById('remainingCount').textContent=remainingCount;
+    if(skippedCountEl) skippedCountEl.textContent=skippedCount;
+    progressBar.style.width=state.progress||'0%'; progressBar.textContent=state.progressText||state.progress||'0%';
+    if(state.statusBadgeClass) statusBadge.className=state.statusBadgeClass;
+    if(state.statusBadgeText) statusBadge.textContent=state.statusBadgeText;
+    if(state.avgTime) document.getElementById('avgTime').textContent=state.avgTime;
+    if(state.etaTime) document.getElementById('etaTime').textContent=state.etaTime;
+    if(state.successRate) document.getElementById('successRate').textContent=state.successRate;
+    if(state.attemptNum) document.getElementById('attemptNum').textContent=state.attemptNum;
+    if(state.statusPanelActive) statusPanel.classList.remove('hidden');
+    if(state.downloadSectionVisible) downloadSection.classList.remove('hidden');
+    if(state.fileUploaded&&currentJobId){
+      document.getElementById('fileLabelContent').classList.add('hidden');
+      document.getElementById('fileSelectedContent').classList.remove('hidden');
+      document.getElementById('fileSelectedText').textContent='File uploaded for current job';
+      fileInput.disabled=true;
+    }
+    calculateSuccessRate();
+    return state;
+  } catch(e) { return null; }
+}
+function saveState() {
+  if(saveStateTimeout) clearTimeout(saveStateTimeout);
+  saveStateTimeout=setTimeout(()=>{ saveStateImmediate(); saveStateTimeout=null; }, SAVE_STATE_DEBOUNCE_MS);
+}
+function saveStateCritical() { if(saveStateTimeout){clearTimeout(saveStateTimeout);saveStateTimeout=null;} saveStateImmediate(); }
+function saveStateImmediate() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      currentJobId, processedCount, successCount, errorCount, unfoundCount, totalMeters, remainingCount, skippedCount,
+      logs:logs.slice(0,MAX_STATE_LOGS), progress:progressBar.style.width||'0%', progressText:progressBar.textContent||'0%',
+      statusBadgeClass:statusBadge.className, statusBadgeText:(statusBadge.textContent||'').toUpperCase(),
+      statusPanelActive:!statusPanel.classList.contains('hidden'), downloadSectionVisible:!downloadSection.classList.contains('hidden'),
+      avgTime:document.getElementById('avgTime').textContent, etaTime:document.getElementById('etaTime').textContent,
+      successRate:document.getElementById('successRate').textContent, attemptNum:document.getElementById('attemptNum').textContent,
+      isJobStopping:!!isJobStopping, fileUploaded:!!currentJobId, wsReconnecting:!!wsReconnecting, timestamp:new Date().toISOString()
+    }));
+  } catch(e) {}
+}
+
+// ==================== UI HELPERS ====================
+const BADGE_CLASSES = {
+  running:'bg-indigo-600 text-white', completed:'bg-emerald-700 text-white',
+  cancelled:'bg-amber-700 text-white', failed:'bg-red-700 text-white', cancelling:'bg-orange-700 text-white animate-pulse'
+};
+function updateStatusBadge(status) {
+  statusBadge.className=`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${BADGE_CLASSES[status]||BADGE_CLASSES.running}`;
+  statusBadge.textContent=status.toUpperCase();
+  saveState();
+}
+function showResumeSection(processed, total) {
+  resumeSection.classList.remove('hidden');
+  if(resumeMessage&&processed!==undefined&&total!==undefined) resumeMessage.textContent=`${processed} of ${total} meters processed. Click Resume to continue.`;
+  if(resumeBtn){resumeBtn.disabled=false;resumeBtn.textContent='▶️ Resume Job';}
+  document.getElementById('fileLabelContent').classList.add('hidden');
+  document.getElementById('fileSelectedContent').classList.remove('hidden');
+  document.getElementById('fileSelectedText').textContent='File uploaded for current job';
+  fileInput.disabled=true;
+}
+function formatSecondsHuman(s) {
+  if(s===null||s===undefined||s==='-'||isNaN(Number(s))) return '-';
+  s=Number(s); if(s<1) return s.toFixed(2)+'s';
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return m===0?`${sec}s`:`${m}m ${sec}s`;
+}
+function setupDownloadButtons() {
+  if(!currentJobId) return;
+  downloadExcel.onclick=()=>window.open(`/download/${currentJobId}`,'_blank');
+  downloadElec.onclick=()=>window.open(`/download/${currentJobId}/electricity`,'_blank');
+  downloadGas.onclick=()=>window.open(`/download/${currentJobId}/gas`,'_blank');
+  downloadUnfound.onclick=()=>window.open(`/download/${currentJobId}/unfound`,'_blank');
+}
+
+// ==================== JOB OPERATIONS ====================
+async function startNewJob() {
+  resetUI();
+  const formData = new FormData();
+  if (!fileInput.files||fileInput.files.length===0) { errorAlert.textContent='Please select at least one Excel file.'; errorAlert.classList.remove('hidden'); return; }
+  for (let i=0;i<fileInput.files.length;i++) formData.append('files',fileInput.files[i],fileInput.files[i].name);
+  const selectedSheets = getSelectedSheets();
+  if (selectedSheets) formData.append('selected_sheets',selectedSheets);
+  startBtn.disabled=true; startBtn.textContent='⏳ Starting...';
+  try {
+    const res = await fetch('/start',{method:'POST',body:formData});
+    const json = res.ok?await res.json():{};
+    if (!res.ok||!json.job_id) throw new Error(json.detail||json.msg||'Failed to start');
+    currentJobId=json.job_id;
+    setupDownloadButtons();
+    document.getElementById('fileLabelContent').classList.add('hidden');
+    document.getElementById('fileSelectedContent').classList.remove('hidden');
+    document.getElementById('fileSelectedText').textContent=`${fileInput.files.length} file(s) uploaded`;
+    fileInput.disabled=true;
+    initWebSocket(currentJobId);
+    statusPanel.classList.remove('hidden');
+    previewCard.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    resumeSection.classList.add('hidden');
+    addLog('Job started','success');
+    if(json.total_meters) addLog(`Processing ${json.total_meters} meters`,'info');
+    updateStatusBadge('running');
+    saveStateCritical();
+  } catch(error) {
+    errorAlert.textContent=`❌ Error: ${error.message}`; errorAlert.classList.remove('hidden');
+    startBtn.disabled=false; startBtn.textContent='🚀 Start Automation';
+    addLog(`Error: ${error.message}`,'error');
+  }
+}
+
+async function resumeJob(jobId) {
+  addLog('Checking resume status...','info');
+  try {
+    const check=await fetch(`/check_resume/${jobId}`);
+    const checkData=await check.json();
+    if (!checkData.can_resume) { alert(`Resume Error:\n\n${checkData.reason||'Cannot resume'}`); addLog(`❌ ${checkData.reason||'Cannot resume'}`,'error'); return; }
+    const response=await fetch(`/resume/${jobId}`,{method:'POST',headers:{'Content-Type':'application/json'}});
+    if (!response.ok) { const e=await response.json(); throw new Error(e.detail||'Failed to resume'); }
+    const data=await response.json();
+    addLog(`✅ ${data.msg}`,'success');
+    resumeSection.classList.add('hidden');
+    stopBtn.classList.remove('hidden');
+    statusPanel.classList.remove('hidden');
+    previewCard.classList.remove('hidden');
+    updateStatusBadge('running');
+    initWebSocket(jobId);
+    saveStateCritical();
+  } catch(error) { alert(`Resume Error:\n\n${error.message}`); addLog(`❌ ${error.message}`,'error'); }
+}
+
+async function stopJob() {
+  if (!currentJobId) return;
+  if (isJobStopping) return;
+  if (!confirm('Stop this job? Progress will be saved and you can resume later.')) return;
+  isJobStopping=true; stopBtn.disabled=true; stopBtn.textContent='⏳ Stopping...';
+  addLog('Stop requested...','warning'); updateStatusBadge('cancelling'); saveStateCritical();
+  try {
+    const res=await fetch(`/stop/${currentJobId}`,{method:'POST'});
+    const json=res.ok?await res.json():{};
+    if (!res.ok) throw new Error(json.detail||'Failed to stop');
+    addLog(json.msg||'Job stopped','success');
+    updateStatusBadge('cancelled'); isJobStopping=false;
+    if (json.can_resume) showResumeSection(json.processed||processedCount,totalMeters);
+    stopBtn.classList.add('hidden'); stopBtn.disabled=false; stopBtn.textContent='⛔ Stop Job';
+    workerStatus.classList.add('hidden');
+    downloadSection.classList.remove('hidden');
+    if (currentJobId) setTimeout(()=>{ fetchPreviews(currentJobId); fetchStats(currentJobId); }, 500);
+    saveStateCritical();
+  } catch(error) {
+    errorAlert.textContent=`❌ Stop Error: ${error.message}`; errorAlert.classList.remove('hidden');
+    isJobStopping=false; updateStatusBadge('running');
+    stopBtn.disabled=false; stopBtn.textContent='⛔ Stop Job';
+  }
+}
+
+function resetUI() {
+  processedCount=0;successCount=0;errorCount=0;unfoundCount=0;totalMeters=0;remainingCount=0;skippedCount=0;
+  logs=[];combinedRows=[];isJobStopping=false;wsReconnectAttempts=0;wsReconnecting=false;unfoundRows=[];
+  ['totalMeters','processedMeters','successCount','errorCount','unfoundMeters','remainingCount','elecCount','gasCount','unfoundCount'].forEach(id=>document.getElementById(id).textContent='0');
+  ['avgTime','etaTime','successRate'].forEach(id=>document.getElementById(id).textContent='-');
+  document.getElementById('attemptNum').textContent='1';
+  if(skippedCountEl) skippedCountEl.textContent='0';
+  progressBar.style.width='0%'; progressBar.textContent='0%';
+  clearLogDisplay();
+  elecTableContainer.innerHTML='<p class="text-center text-slate-600 py-10 text-sm">No electricity meters yet...</p>';
+  gasTableContainer.innerHTML='<p class="text-center text-slate-600 py-10 text-sm">No gas meters yet...</p>';
+  unfoundTableContainer.innerHTML='<p class="text-center text-slate-600 py-10 text-sm">No unfound meters yet...</p>';
+  errorAlert.classList.add('hidden'); successAlert.classList.add('hidden');
+  downloadSection.classList.add('hidden'); previewCard.classList.add('hidden');
+  workerStatus.classList.add('hidden');
+  updateStatusBadge('running');
+  startBtn.disabled=false; startBtn.textContent='🚀 Start Automation';
+  stopBtn.classList.add('hidden');
+  savePreviewDataImmediate();
+}
+
+function clearAll() {
+  if (!confirm('⚠️ Clear ALL saved data and reset the interface?')) return;
+  if (ws){try{ws.close();}catch(e){}} ws=null;
+  localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(PREVIEW_STORAGE_KEY);
+  currentJobId=null;
+  resetUI();
+  statusPanel.classList.add('hidden');
+  resumeSection.classList.add('hidden');
+  document.getElementById('fileLabelContent').classList.remove('hidden');
+  document.getElementById('fileSelectedContent').classList.add('hidden');
+  fileInput.value=''; fileInput.disabled=false;
+  document.getElementById('sheetSelectionContainer').classList.add('hidden');
+  alert('✅ All data cleared!');
+}
+
+// ==================== EVENT LISTENERS ====================
+fileInput.addEventListener('change', e => {
+  const count = e.target.files?e.target.files.length:0;
+  if (count>0) {
+    document.getElementById('fileLabelContent').classList.add('hidden');
+    document.getElementById('fileSelectedContent').classList.remove('hidden');
+    document.getElementById('fileSelectedText').textContent=`${count} file${count!==1?'s':''} selected`;
+    previewSheets();
+  } else {
+    document.getElementById('fileLabelContent').classList.remove('hidden');
+    document.getElementById('fileSelectedContent').classList.add('hidden');
+    hideSheetSelection();
+  }
+});
+uploadForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (currentJobId&&fileInput.disabled) { errorAlert.textContent='⚠️ Job already created. Use Resume or Clear All.'; errorAlert.classList.remove('hidden'); return; }
+  await startNewJob();
+});
+stopBtn.addEventListener('click', stopJob);
+resumeBtn.addEventListener('click', async()=>{ if(!currentJobId||isJobStopping) return; await resumeJob(currentJobId); });
+clearBtn.addEventListener('click', clearAll);
+</script>
+</body>
+</html>

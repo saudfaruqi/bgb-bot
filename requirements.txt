@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pandas
+python-dotenv
+tenacity
+playwright
+jinja2
+aiofiles
+python-multipart
+openpyxl

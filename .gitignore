@@ -1,0 +1,16 @@
+.env
+
+# Local database
+analytics.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated job metadata
+job_meta/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

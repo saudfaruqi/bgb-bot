@@ -1,0 +1,1 @@
+web: playwright install chromium && python3 -m uvicorn app_async:app --host=0.0.0.0 --port=$PORT
