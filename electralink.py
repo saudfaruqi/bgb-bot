@@ -13,8 +13,8 @@ st.set_page_config(
 )
 
 # Constants
-API_KEY = "2Y4W3zaGAPZqHVw8B2uc6d6fZ"
-API_PASSWORD = "FBVfPCKhZFaKRz5v"
+API_KEY = ""
+API_PASSWORD = ""
 API_URL = "https://api.electralink.co.uk/v2/eac"
 MAX_REQUESTS = 100
 
